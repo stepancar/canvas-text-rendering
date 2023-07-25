@@ -2,6 +2,7 @@
 import Stats from 'stats.js';
 import LANGUAGES, {LONG_TEXT} from "./library";
 import TRANSCRIPT from "../resources/transcript.json";
+import CHRIS_TRANSCRIPT from '../resources/transcript_chris_talking.json'
 import {
     loadFont,
     getWords, loadAudio, simplifyTranscript,
@@ -262,6 +263,136 @@ const transcriptToAnimation = async() => {
     audio.pause();
 }
 
+const transcriptToAnimation2 = async() => {
+    // to see how long it takes to render a frame
+    const stats = new Stats();
+    stats.showPanel( 0 ); // 0: fps, 1: ms, 2: mb, 3+: custom
+    stats.dom.style.position = 'absolute';
+    stats.dom.style.top = '10px';
+    stats.dom.style.left = '10px';
+    document.body.appendChild(stats.dom);
+
+    // instructions for the user
+    const click = document.createElement('div');
+    click.innerText = 'click on screen to play';
+    click.style.position = 'absolute';
+    click.style.top = '10px';
+    click.style.left = '384px';
+    document.body.appendChild(click);
+
+    //  ----------------------------------------------------------
+    // PIXI setup
+    const height = 512;
+    const width = 512 * 16/9;
+    const app = new Application({
+        backgroundColor: 0xffffff,
+        antialias: true,
+        autoStart: false,
+        width,
+        height,
+    });
+    (app.view as HTMLCanvasElement).id = 'pixiCanvas';
+
+    const videoSprite = Sprite.from('../resources/chris_talking_720.mp4');
+    videoSprite.tint = 0xD6D6D6;
+    videoSprite.scale.x = 0.85;
+    videoSprite.scale.y = 0.85;
+    const videoResource = videoSprite.texture.baseTexture.resource as any;
+    const video = videoResource.source as HTMLVideoElement
+    video.muted = true;
+    video.loop = true;
+    video.autoplay = false;
+    video.pause();
+    app.stage.addChild(videoSprite);
+
+    const normalFont: Font = {
+        family: 'Poppins',
+        url: 'https://storage.googleapis.com/lumen5-site-css/Poppins-Bold.ttf',
+    }
+    const normalStyle: TextStyle = {
+        fontFamily: 'Poppins',
+        fontSize: 28,
+        fontColor: 'rgba(98,98,98, 0.5)',
+        lineHeight: 1.6,
+    }
+    const highlightStyle: TextStyle = {
+        fontFamily: 'Poppins',
+        fontSize: 28,
+        fontColor: 'rgba(255,255,255, 1.0)',
+        lineHeight: 1.6,
+    }
+    await loadFont('Poppins', 'https://storage.googleapis.com/lumen5-site-css/Poppins-Bold.ttf');
+    const groupId = 'da5b2a03-ad73-a936-8b5f-f6b485834a48';
+    const transcript = new Transcript({...simplifyTranscript(CHRIS_TRANSCRIPT, groupId)});
+    const captions = new CaptionGenerator({
+        transcript,
+        normalStyle,
+        normalFont,
+        highlightStyle,
+        highlightFont: normalFont,
+        startTime: 0,
+        endTime: transcript.endTime,
+        chunkDuration: 5000,
+        width: 325,
+        height: 480,
+        fancyStyle: {
+            style: 'opacity',
+            level: 'word',
+            interpolation: 'stepped',
+        },
+    });
+
+    const pixiTexture = Texture.from(captions.canvas);
+    const pixiSprite = new Sprite(pixiTexture);
+    pixiSprite.x = 30;
+    pixiSprite.y = 120;
+    app.stage.addChild(pixiSprite);
+
+    // create a looping timeline
+    const timeline = new Timeline();
+    const progressTimeline = new ProgressTimeline({
+        start: 0,
+        end: transcript.duration,
+        loop: true,
+        onLoopCallBack: () => {
+            // restart audio when our timeline loops
+            video.currentTime = 0.0;
+        }
+    });
+    const pixiDraw = () => {
+        stats.begin();
+
+        if (video.paused) {
+            video.play();
+            timeline.reset();
+        }
+
+        // update time
+        const currentTime = timeline.currentTime;
+        const progress = progressTimeline.value(currentTime);
+        const time = progress * progressTimeline.end;
+        captions.currentTime = time;
+        captions.draw();
+
+        // draw changes
+        pixiTexture.update();
+
+        stats.end();
+    }
+
+    document.addEventListener('click', () => {
+        app.ticker.add(pixiDraw);
+        app.ticker.start();
+        document.body.appendChild((app as any).view);
+        click.style.display = 'none';
+
+        video.muted = false;
+        video.pause();
+        video.currentTime = 0.0;
+    });
+}
+
 // drawAndSelectText();
 // drawLotsOfText();
-transcriptToAnimation();
+// transcriptToAnimation();
+transcriptToAnimation2();

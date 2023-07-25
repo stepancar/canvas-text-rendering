@@ -14,6 +14,7 @@ export type TextStyle = {
     fontSize: number,
     fontFamily: string,
     fontColor: string,
+    lineHeight?: number,
 }
 
 const getNextClosestIndex = (array, index) => {
@@ -342,7 +343,8 @@ export class CaptionGenerator {
         if (!fontSize) {
             return 0;
         }
-        return fontSize * 1.2;
+        const lineHeight = this._normalStyle.lineHeight || 1.2;
+        return fontSize * lineHeight;
     }
 
     get x() {
