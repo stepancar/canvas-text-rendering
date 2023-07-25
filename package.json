@@ -1,0 +1,35 @@
+{
+  "name": "canvas-text-rendering",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "build": "webpack build --config webpack.config.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/animanathome/canvas-text-rendering.git"
+  },
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/animanathome/canvas-text-rendering/issues"
+  },
+  "homepage": "https://github.com/animanathome/canvas-text-rendering#readme",
+  "dependencies": {
+    "node-fetch": "^3.3.1",
+    "pixi.js": "^7.2.4",
+    "stats.js": "^0.17.0",
+    "webfontloader": "^1.6.28"
+  },
+  "devDependencies": {
+    "html-webpack-plugin": "^5.5.3",
+    "stream-browserify": "^3.0.0",
+    "copy-webpack-plugin": "^11.0.0",
+    "ts-loader": "^9.4.4",
+    "typescript": "^5.1.6",
+    "webpack": "^5.88.2",
+    "webpack-cli": "^5.1.4",
+    "webpack-dev-server": "^4.15.1"
+  }
+}
