@@ -215,7 +215,13 @@ const transcriptToAnimation = async() => {
     }
     await loadFont('Poppins', 'https://storage.googleapis.com/lumen5-site-css/Poppins-Bold.ttf');
 
-    const transcript = new Transcript({...simplifyTranscript(TRANSCRIPT)});
+    const {words, language, textDirection} = simplifyTranscript(TRANSCRIPT)
+    const transcript = new Transcript({
+        name: 'global',
+        words,
+        language,
+        textDirection,
+    });
     const captions = new CaptionGenerator({
         transcript,
         normalStyle,
@@ -224,7 +230,10 @@ const transcriptToAnimation = async() => {
         highlightFont: normalFont,
         startTime: 0,
         endTime: transcript.endTime,
-        chunkDuration: 2600,
+        chunkStyle: {
+            style: 'duration',
+            duration: 5000,
+        },
         width: 325,
         height: 480,
         fancyStyle: {
@@ -346,7 +355,14 @@ const transcriptToAnimation2 = async() => {
     }
     await loadFont('Poppins', 'https://storage.googleapis.com/lumen5-site-css/Poppins-Bold.ttf');
     const groupId = 'da5b2a03-ad73-a936-8b5f-f6b485834a48';
-    const transcript = new Transcript({...simplifyTranscript(CHRIS_TRANSCRIPT, groupId)});
+    const {words, language, textDirection} = simplifyTranscript(CHRIS_TRANSCRIPT, groupId)
+    const transcript = new Transcript({
+        name: 'global',
+        words,
+        language,
+        textDirection,
+    });
+    console.log('transcript duration', transcript.duration)
     const captions = new CaptionGenerator({
         transcript,
         normalStyle,
@@ -355,15 +371,21 @@ const transcriptToAnimation2 = async() => {
         highlightFont: normalFont,
         startTime: 0,
         endTime: transcript.endTime,
-        chunkDuration: 5000,
-        width: 325,
-        height: 480,
+        chunkStyle: {
+            style: 'duration',
+            duration: 5000,
+        },
+        width: 350,
+        height: 350,
         fancyStyle: {
             style: 'opacity',
             level: 'word',
             interpolation: 'stepped',
         },
     });
+
+    // parent text canvas to document for viewing
+    // document.body.appendChild(captions.canvas);
 
     const pixiTexture = Texture.from(captions.canvas);
     const pixiSprite = new Sprite(pixiTexture);
@@ -409,10 +431,11 @@ const transcriptToAnimation2 = async() => {
         document.body.appendChild((app as any).view);
         click.style.display = 'none';
 
-        video.muted = false;
+        // video.muted = false;
         video.pause();
         video.currentTime = 0.0;
     });
+    captions.draw();
 }
 
 // drawAndSelectText();

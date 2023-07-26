@@ -17,13 +17,15 @@ export type TextStyle = {
     lineHeight?: number,
 }
 
-const getNextClosestIndex = (array, index) => {
-    for (let i = 0; i < array.length; i++) {
-        if (array[i] > index) {
-            return i;
-        }
+// simple text metric cache to ensure we don't have to recompute the same text metric over and over again
+const textMetricCache = {};
+const getTextMetric = (text, context) => {
+    if (textMetricCache[text]) {
+        return textMetricCache[text];
     }
-    return array.length - 1;
+    const textMetric = context.measureText(text);
+    textMetricCache[text] = textMetric;
+    return textMetric;
 }
 
 class Caption {
@@ -37,9 +39,6 @@ class Caption {
     _normalWordMetrics: TextMetrics[] = [];
     _normalWordPos: Position[] = [];
     _normalLineIndices: number[] = [];
-
-    // skia highlight style word metrics
-    _highlightWords: any[] = [];
 
     constructor(options: {
         transcript: Transcript,
@@ -92,24 +91,6 @@ class Caption {
             this._normalWordPos.push({x: xOffset, y: yOffset});
             if (newLine) this._normalLineIndices.push(index);
         });
-
-
-        // this._normalWordsPos.push({x: xOffset, y: yOffset});
-        // this._normalWords.forEach((word, index) => {
-        //     xOffset += word.width + this.parent.space;
-        //     if (this._normalWords[index + 1] && (xOffset + this._normalWords[index + 1].width) > this.parent.width) {
-        //         xOffset = padding.left;
-        //         yOffset += word.lineHeight;
-        //         newLine = true;
-        //     }
-        //     else {
-        //         newLine = false;
-        //     }
-        //     this._normalWordsPos.push({x: xOffset, y: yOffset});
-        //     if (newLine) this._normalLineIndices.push(index);
-        // });
-        // this._normalLineIndices.push(this._normalWords.length - 1);
-        // console.log('normal line indices', this._normalLineIndices, this._normalLineIndices.map(index => this._normalWordsPos[index].y));
     }
 
     draw() {
@@ -178,6 +159,11 @@ export type FancyStyle = {
     style: 'opacity' | 'highlight',
     level: 'object' | 'line' | 'word',
     interpolation: 'linear' | 'stepped'
+}
+
+export type ChunkStyle = {
+    style: 'duration' | 'bounds',
+    duration?: number,
 }
 
 
@@ -249,7 +235,6 @@ export class CaptionGenerator {
     private _transcript: Transcript;
     startTime: number;
     endTime: number;
-    chunkDuration : number;
     private _currentTime = -1;
 
     private _normalStyle: TextStyle;
@@ -268,7 +253,11 @@ export class CaptionGenerator {
     private _canvas: HTMLCanvasElement;
     private _context: CanvasRenderingContext2D;
 
+    private _captionStartIndex = -1;
+    private _captionEndIndex = -1;
+
     fancyStyle: FancyStyle;
+    chunkStyle: ChunkStyle;
 
     constructor(options: {
         transcript: Transcript,
@@ -285,7 +274,7 @@ export class CaptionGenerator {
 
         startTime?: number,
         endTime?: number,
-        chunkDuration?: number
+        chunkStyle?: ChunkStyle
 
         fancyStyle: FancyStyle,
     }) {
@@ -303,7 +292,7 @@ export class CaptionGenerator {
 
         this.startTime = options.startTime || 0;
         this.endTime = options.endTime || 1000;
-        this.chunkDuration = options.chunkDuration || 1000;
+        this.chunkStyle = options.chunkStyle || {'style': 'duration', 'duration': 1000};
 
         this.fancyStyle = options.fancyStyle;
 
@@ -319,8 +308,12 @@ export class CaptionGenerator {
     }
 
     resizeCanvas(width: number, height: number) {
-        this._width = width * 2;
-        this._height = height * 2;
+        // console.log('resizeCanvas', width, height);
+
+        // NOTE: we have to scale the canvas up by 2 to get a crisp image.
+        // However, this is very confusing since we mutate the incoming width and height
+        this._width = width;
+        this._height = height;
         this._canvas.width = width;
         this._canvas.height = height;
     }
@@ -387,21 +380,30 @@ export class CaptionGenerator {
     }
 
     get chunkCount() {
-        return Math.ceil(this.duration / this.chunkDuration);
+        if (this.chunkStyle.style === 'duration' && this.chunkStyle.duration) {
+            return Math.ceil(this.duration / this.chunkStyle.duration);
+        }
+        throw new Error('Invalid chunk style');
     }
 
     getActiveChunk(time) {
+        if (this.chunkStyle.style !== 'duration' || !this.chunkStyle.duration) {
+            throw new Error('Invalid chunk style');
+        }
         if (time < this.startTime) {
             return 0;
         }
         if (time > this.endTime) {
             return this.chunkCount;
         }
-        return Math.floor(time / this.chunkDuration);
+        return Math.floor(time / this.chunkStyle.duration);
     }
 
     getChunkTimeRange(index: number) {
-        const chunckDuration = this.chunkDuration;
+        if (this.chunkStyle.style !== 'duration' || !this.chunkStyle.duration) {
+            throw new Error('Invalid chunk style');
+        }
+        const chunckDuration = this.chunkStyle.duration;
         const startTime = index * chunckDuration;
         const endTime = startTime + chunckDuration;
         return {
@@ -425,27 +427,50 @@ export class CaptionGenerator {
         return this._currentTime;
     }
     set currentTime(time) {
+        // console.log(this.transcript.name);
+
         // nothing to do if we're not within the time range
         if (this.startTime > time || this.endTime < time) {
             return;
         }
 
         this._currentTime = time;
-        const activeChunk = this.getActiveChunk(time);
-        if (activeChunk === this._previousActiveChunk) {
-            return;
-        }
-        this._previousActiveChunk = activeChunk;
 
-        // NOTE: we don't take bounds into account here. We just get all the words within the given chunk duration
-        // if we want to take bounds into account, we'll have to rework this quite a bit as we'll first want to layout
-        // out all the words first, so we know their width and height to chunk bounds.
-        const {startTime, endTime} = this.getChunkTimeRange(activeChunk);
-        const transcript = this.transcript.createTranscriptFromTimeRange(startTime, endTime)
+        let transcript: Transcript | null = null;
+        if (this.chunkStyle.style === 'bounds') {
+            const activeWordIndex = this.getActiveWordIndex();
+            if (activeWordIndex === -1) {
+                return;
+            }
+            if (activeWordIndex <= this._captionEndIndex) {
+                return;
+            }
+            const {startIndex, endIndex} = this.getWordsForBounds(activeWordIndex);
+            transcript = this.transcript.createTranscriptFromWordRange(startIndex, endIndex);
+            this._captionStartIndex = startIndex;
+            this._captionEndIndex = endIndex;
+        }
+        else if (this.chunkStyle.style === 'duration') {
+            const activeChunk = this.getActiveChunk(time);
+            if (activeChunk === this._previousActiveChunk) {
+                return;
+            }
+            this._previousActiveChunk = activeChunk;
+
+            // NOTE: we don't take bounds into account here. We just get all the words within the given chunk duration
+            // if we want to take bounds into account, we'll have to rework this quite a bit as we'll first want to layout
+            // out all the words first, so we know their width and height to chunk bounds.
+            const {startTime, endTime} = this.getChunkTimeRange(activeChunk);
+            transcript = this.transcript.createTranscriptFromTimeRange(startTime, endTime)
+        }
 
         if (this._activeCaption) {
             this._activeCaption.destroy();
         }
+        if (!transcript) {
+            return;
+        }
+        // console.log('create new caption', transcript.startTime, transcript.endTime);
         this._activeCaption = new Caption({
             transcript,
             parent: this
@@ -480,9 +505,45 @@ export class CaptionGenerator {
 
     draw() {
         if (!this.activeCaption) {
-            console.warn('no active caption');
             return;
         }
         this.activeCaption.draw();
+    }
+
+    /**
+     * Get the next slice of word indices that fit within the given bounds
+     */
+    getWordsForBounds(startWordIndex: number) {
+        // console.log('createTranscriptFromBounds', startWordIndex);
+        // console.log('bounds', this.width, this.height);
+        this._activateNormalFont();
+        const textArray = this.transcript.words.map(word => word.text);
+
+        // NOTE: we should generalize this logic as we're using it in multiple places, see caption.build
+        // layout text using normal font
+        let xPos = this.x;
+        let yPos = this.y;
+        let xOffset = xPos;
+        let yOffset = yPos;
+        let lastWordIndex = -1;
+        for(let i = startWordIndex; i < textArray.length; i++) {
+            const textMetric = getTextMetric(textArray[i], this.context);
+
+            xOffset += textMetric.width + this.space;
+            if (i < textArray.length - 1 && xOffset + getTextMetric(textArray[i + 1], this.context).width > this.width) {
+                xOffset = xPos;
+                yOffset += this.lineHeight;
+            }
+            if (yOffset + this.lineHeight > this.height) {
+                lastWordIndex = i;
+                break;
+            }
+        }
+        // console.log('lastWordIndex', lastWordIndex);
+        // console.log('text:', textArray.slice(startWordIndex, lastWordIndex + 1).join(' '));
+        return {
+            startIndex: startWordIndex,
+            endIndex: lastWordIndex,
+        }
     }
 }
