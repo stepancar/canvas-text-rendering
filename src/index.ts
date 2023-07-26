@@ -1,4 +1,3 @@
-// https://developer.mozilla.org/en-US/docs/Web/API/Canvas_API/Tutorial/Optimizing_canvas
 import Stats from 'stats.js';
 import LANGUAGES, {LONG_TEXT} from "./library";
 import TRANSCRIPT from "../resources/transcript.json";
@@ -35,7 +34,7 @@ const drawAndSelectText = async() => {
     console.log('languageCount', languageCount);
 
     // Change the index [0 - 4] to see the different languages
-    const {family: fontFamily, url: fontUrl, text, locales, direction} = LANGUAGES[languages[0]];
+    const {family: fontFamily, url: fontUrl, text, locales, direction} = LANGUAGES[languages[4]];
     console.log('fontFamily', fontFamily, 'text', text, locales, direction);
 
     // svg vs canvas
@@ -44,14 +43,19 @@ const drawAndSelectText = async() => {
     context.font = `${fontSize}px ${fontFamily}`;
 
     const words = getWords(text, locales, direction);
-    words.push('😜😂😍');
+    // words.push('😜😂😍');
 
     const yPos = 100;
     const xPos = 10;
     let xOffset = xPos;
     let yOffset = yPos;
     const space = fontSize * 0.2;
-    console.log('space', space);
+
+    let totalWidth = 0;
+    let fontAscent = 0;
+    let fontDescent = 0;
+    let textAscent = -Infinity;
+    let textDescent = -Infinity;
     words.forEach((word, index) => {
         context.fillStyle = 'rgba(0, 0, 0, 1.0)';
         const textMetrics = context.measureText(word);
@@ -75,7 +79,26 @@ const drawAndSelectText = async() => {
             context.fillRect(xOffset, yOffset, width, height);
         }
         xOffset += width + space;
+        totalWidth += width + space;
+        fontAscent = textMetrics.fontBoundingBoxAscent;
+        fontDescent = textMetrics.fontBoundingBoxDescent;
+
+        if (textAscent < textMetrics.actualBoundingBoxAscent) {
+            textAscent = textMetrics.actualBoundingBoxAscent;
+        }
+        if (textDescent < textMetrics.actualBoundingBoxDescent) {
+            textDescent = textMetrics.actualBoundingBoxDescent;
+        }
     });
+
+    // draw baseline, ascender, descender and lineHeight
+    context.fillRect(0, yPos, totalWidth, 1);
+    context.fillRect(0, yPos - fontAscent, totalWidth, 1);
+    context.fillRect(0, yPos + fontDescent, totalWidth, 1);
+
+    context.fillStyle = 'rgba(255, 0, 0, 0.5)';
+    context.fillRect(0, yPos - textAscent, totalWidth, 1);
+    context.fillRect(0, yPos + textDescent, totalWidth, 1);
 }
 
 const drawLotsOfText = async() => {

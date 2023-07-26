@@ -138,14 +138,16 @@ class Caption {
             }
         }
         if (this.parent.fancyStyle.style === 'highlight') {
+            const padding = {
+                left: 3,
+                right: 3,
+                top: 4,
+                bottom: 4,
+            }
+
+            // draw color graphic behind spoken word
             const activeWordIndex = this._transcript.getActiveWordIndex(this.parent.currentTime);
             if (activeWordIndex !== -1) {
-                const padding = {
-                    left: 3,
-                    right: 3,
-                    top: 4,
-                    bottom: 4,
-                }
                 this.parent._activateHighlightStyle();
 
                 const textMetric = this._normalWordMetrics[activeWordIndex];
@@ -156,6 +158,7 @@ class Caption {
                     textMetric.actualBoundingBoxAscent + textMetric.actualBoundingBoxDescent + padding.top + padding.bottom)
             }
 
+            // draw transcript text
             for (let i = 0; i < lastWordIndex; i++) {
                 this.parent._activateNormalStyle();
                 this.parent.context.fillText(this._words[i], this._normalWordPos[i].x, this._normalWordPos[i].y);
