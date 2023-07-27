@@ -15,27 +15,29 @@ import {Transcript} from "./transcript";
 import {CaptionGenerator, Font, TextStyle} from "./captions";
 import {ProgressTimeline, Timeline} from "./timeline";
 
-const drawAndSelectText = async() => {
+const drawAndSelectText = async(languageIndex: number) => {
+    if (languageIndex === undefined) {
+        throw new Error('languageIndex is undefined');
+    }
+    console.log('drawAndSelectText', languageIndex);
+
     const canvas = document.createElement('canvas');
     const multiplier = 2;
     canvas.width = 512 * 2;
-    canvas.height = 512 * 2;
+    canvas.height = 128 * 2;
     canvas.style.width = 512 + 'px';
-    canvas.style.height = 512 + 'px';
+    canvas.style.height = 128 + 'px';
     const context = canvas.getContext('2d');
     if (!context) {
         throw new Error('Failed to get canvas context');
     }
-    console.log('context', context);
     document.body.appendChild(canvas);
 
     const languages = Object.keys(LANGUAGES);
     const languageCount = languages.length;
-    console.log('languageCount', languageCount);
 
     // Change the index [0 - 4] to see the different languages
-    const {family: fontFamily, url: fontUrl, text, locales, direction} = LANGUAGES[languages[4]];
-    console.log('fontFamily', fontFamily, 'text', text, locales, direction);
+    const {family: fontFamily, url: fontUrl, text, locales, direction} = LANGUAGES[languages[languageIndex]];
 
     // svg vs canvas
     await loadFont(fontFamily, fontUrl);
@@ -65,6 +67,8 @@ const drawAndSelectText = async() => {
         yOffset = yPos - textMetrics.actualBoundingBoxAscent;
         let height = textMetrics.actualBoundingBoxAscent + textMetrics.actualBoundingBoxDescent;
         let width = textMetrics.actualBoundingBoxRight - textMetrics.actualBoundingBoxLeft;
+        console.log(word, textMetrics.actualBoundingBoxRight, textMetrics.actualBoundingBoxLeft, textMetrics.width);
+        // let width = textMetrics.width;
 
         if (index === 1 ) {
             context.fillStyle = 'rgba(255, 0, 0, 0.5)';
@@ -295,6 +299,12 @@ const transcriptToAnimation = async() => {
     audio.pause();
 }
 
+const drawAllText = async() => {
+    for (let i = 0; i < 5; i++) {
+        await drawAndSelectText(i);
+    }
+}
+
 const transcriptToAnimation2 = async() => {
     // to see how long it takes to render a frame
     const stats = new Stats();
@@ -438,7 +448,7 @@ const transcriptToAnimation2 = async() => {
     captions.draw();
 }
 
-// drawAndSelectText();
+drawAllText();
 // drawLotsOfText();
 // transcriptToAnimation();
-transcriptToAnimation2();
+// transcriptToAnimation2();
