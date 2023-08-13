@@ -2,8 +2,9 @@ import fs from "fs";
 
 const { registerFont, createCanvas } = require('canvas')
 import LANGUAGES from "./library";
-import {downloadFile} from "./node_utils";
-import {getWords} from "./node_utils";
+import {downloadFile} from "./utils/node_utils";
+import {getWords} from "./utils/node_utils";
+import {Text} from "./asset/text";
 
 const drawAndSelectText = async(languageIndex: number) => {
     if (languageIndex === undefined) {
@@ -23,9 +24,9 @@ const drawAndSelectText = async(languageIndex: number) => {
     // we must register the font before we create a canvas
     registerFont(fontPath, { family: fontFamily })
 
-    const multiplier = 2;
-    const width = 512 * multiplier;
-    const height = 128 * multiplier;
+    const multiplier = 2.0;
+    const width = 768 * multiplier;
+    const height = 64 * multiplier;
     const canvas = createCanvas(width, height)
     const context = canvas.getContext('2d');
 
@@ -37,8 +38,8 @@ const drawAndSelectText = async(languageIndex: number) => {
         words = words.reverse();
     }
 
-    const yPos = 100;
-    const xPos = 10;
+    const yPos = 50 * multiplier;
+    const xPos = 5 * multiplier;
     let xOffset = xPos;
     let yOffset = yPos;
     const space = fontSize * 0.2;
@@ -52,25 +53,18 @@ const drawAndSelectText = async(languageIndex: number) => {
         context.fillStyle = 'rgba(0, 0, 0, 1.0)';
         const textMetrics = context.measureText(word);
         context.fillText(word, xOffset, yPos);
+        // console.log('text metrics', textMetrics);
 
         yOffset = yPos - textMetrics.actualBoundingBoxAscent;
         let height = textMetrics.actualBoundingBoxAscent + textMetrics.actualBoundingBoxDescent;
-        let width = textMetrics.actualBoundingBoxRight - textMetrics.actualBoundingBoxLeft;
-        console.log(word, textMetrics.actualBoundingBoxRight, textMetrics.actualBoundingBoxLeft, textMetrics.width);
-        // let width = textMetrics.width;
+        // WARNING: actualBoundingBoxRight and actualBoundingBoxLeft generate different results in node and browser
+        // let width = textMetrics.actualBoundingBoxRight - textMetrics.actualBoundingBoxLeft;
+        // console.log(word, textMetrics.actualBoundingBoxRight, textMetrics.actualBoundingBoxLeft, textMetrics.width);
+        let width = textMetrics.width;
 
-        if (index === 1 ) {
-            context.fillStyle = 'rgba(255, 0, 0, 0.5)';
-            context.fillRect(xOffset, yOffset, width, height);
-        }
-        if (index === 2 ) {
-            context.fillStyle = 'rgba(0, 255, 0, 0.5)';
-            context.fillRect(xOffset, yOffset, width, height);
-        }
-        if (index === 3 ) {
-            context.fillStyle = 'rgba(0, 0, 255, 0.5)';
-            context.fillRect(xOffset, yOffset, width, height);
-        }
+        context.fillStyle = 'rgba(0, 255, 0, 0.25)';
+        context.fillRect(xOffset, yOffset, width, height);
+
         xOffset += width + space;
         totalWidth += width + space;
         fontAscent = textMetrics.fontBoundingBoxAscent;
@@ -93,14 +87,46 @@ const drawAndSelectText = async(languageIndex: number) => {
     context.fillRect(0, yPos - textAscent, totalWidth, 1);
     context.fillRect(0, yPos + textDescent, totalWidth, 1);
 
-    const imageFileName = `./tmp/${locales}_${fontFamily}.png`;
+    const imageFileName = `./resources/${locales}_${fontFamily}.png`;
     const buffer = canvas.toBuffer('image/png')
     fs.writeFileSync(imageFileName, buffer);
 };
 
 const drawAllText = async() => {
-    for (let i = 0; i < 5; i++) {
+    for (let i = 0; i < 6; i++) {
         await drawAndSelectText(i);
     }
 }
-drawAllText();
+
+const canRenderText = async(languageIndex: number) => {
+    console.log('canRenderText', languageIndex)
+    if (languageIndex === undefined) {
+        throw new Error('languageIndex is undefined');
+    }
+    const languages = Object.keys(LANGUAGES);
+    const text = LANGUAGES[languages[languageIndex]].text;
+
+    const multiplier = 2.0;
+    const width = 768 * multiplier;
+    const height = 64 * multiplier;
+    const canvas = createCanvas(width, height)
+    const context = canvas.getContext('2d');
+
+    context.font = `${72}px Poppins`;
+    context.fillStyle = 'rgba(0, 0, 0, 1.0)';
+    context.fillText(text, 0, 64);
+
+    const imageFileName = `./tmp/${languages[languageIndex]}_text.png`;
+    const buffer = canvas.toBuffer('image/png')
+    fs.writeFileSync(imageFileName, buffer);
+}
+
+const drawRenderAllText = async() => {
+    for (let i = 0; i < 6; i++) {
+        await canRenderText(i);
+    }
+}
+
+// drawAllText();
+drawRenderAllText();
+

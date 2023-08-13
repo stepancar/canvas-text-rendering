@@ -10,11 +10,30 @@ export type Font = {
     url: string,
 }
 
+// we still need text shadow as well - maybe we should just use the same interface as the one that PIXI provides?
 export type TextStyle = {
     fontSize: number,
     fontFamily: string,
     fontColor: string,
     lineHeight?: number,
+}
+
+export type GraphicStyle = {
+    graphicColor: string,
+    padding: {
+        top: number,
+        bottom: number,
+        left: number,
+        right: number,
+    },
+}
+
+export type ObjectAnimation = {
+    property: string,
+    element: 'line' | 'word',
+    offset: number,
+    duration: number,
+    range: [number, number],
 }
 
 // simple text metric cache to ensure we don't have to recompute the same text metric over and over again

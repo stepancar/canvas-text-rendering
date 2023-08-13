@@ -1,49 +1,50 @@
-import WebFont from 'webfontloader';
+export type Position = {
+    x: number,
+    y: number,
+}
+export const layoutWords = (
+    wordMetrics,
+    wordSpace: number,
+    lineHeight: number,
+    layoutWidth: number,
+    layoutHeight: number
+) => {
+    let xPos = 0;
+    let yPos = 0 + lineHeight;
+    let wordPositions : Array<Position> = [];
+    let lineIndices: number[] = [];
+    console.log('word metrics', wordMetrics.length);
 
-const WEB_FONT_LOAD_TIMEOUT = 10000;
-
- const generateFontFaceCSS = (familyName: string, url: string) => {
-    const style = familyName;
-    return `
-        @font-face {
-            font-family: "${familyName}";
-            src: url('${url}');
+    let xOffset = xPos;
+    let yOffset = yPos;
+    let newLine = false;
+    wordPositions.push({x: xOffset, y: yOffset});
+    wordMetrics.forEach((wordMetric, index) => {
+        // NOTE: don't use these properties as they are not consistent between node and web
+        const { width } = wordMetric;
+        xOffset += width + wordSpace;
+        if (wordMetrics[index + 1] && xOffset + wordMetrics[index + 1].width > layoutWidth) {
+            xOffset = xPos;
+            yOffset += lineHeight;
+            newLine = true;
         }
-        .${familyName}, .${familyName} span, .${familyName} p, .${familyName} div {
-            font-family: ${familyName} !important;
+        else {
+            newLine = false;
         }
-    `;
+        wordPositions.push({x: xOffset, y: yOffset});
+        if (newLine) lineIndices.push(index);
+    });
+    if (lineIndices[lineIndices.length - 1] !== wordMetrics.length - 1) {
+        lineIndices.push(wordMetrics.length - 1);
+    }
+
+    return {
+        positions: wordPositions,
+        lineIndices,
+    }
 }
 
-const createStyleElement = (familyName, url) => {
-    const newStyle = document.createElement('style');
-    const css = generateFontFaceCSS(familyName, url);
-
-    newStyle.appendChild(document.createTextNode(css));
-    window.document.head.appendChild(newStyle);
-}
-
-export const loadFont = async(familyName, fontUrl) => {
-     createStyleElement(familyName, fontUrl);
-
-     return new Promise((resolve, reject) => {
-         const WebFontConfig = {
-            custom: {
-                families: [familyName],
-            },
-            fontactive: (familyName, fvd) => {
-                resolve(familyName);
-            },
-            fontinactive: (familyName, fvd) => {
-                const error = new Error(`Failed to load font ${familyName}`);
-                reject(error);
-            },
-            timeout: WEB_FONT_LOAD_TIMEOUT,
-        };
-        WebFont.load(WebFontConfig);
-     });
-}
-
+// How would this work when a piece text contains multiple languages?
 export const getWords = (text, locales, direction) => {
      let words: string[] = [];
 
@@ -79,6 +80,11 @@ export const getGraphemes = (words: string[], locales) => {
     graphemes.push(' ');
 
     return graphemes;
+}
+
+export const remapValue = (value, min, max) => {
+    const range = max - min;
+    return (value * range) + min;
 }
 
 export const simplifyTranscript = (TRANSCRIPT, groupId='72f7ad49-c114-cf11-a619-14fa385d020f') => {
