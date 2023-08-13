@@ -3,7 +3,7 @@ import LANGUAGES, {LONG_TEXT, TEXT_LINES} from "./library";
 import TRANSCRIPT from "../resources/transcript.json";
 import CHRIS_TRANSCRIPT from '../resources/transcript_chris_talking.json'
 import {
-    getWords,
+    getWords, layoutWords,
     loadAudio,
     simplifyTranscript,
 } from "./utils/utils";
@@ -16,7 +16,7 @@ import {Transcript} from "./asset/transcript";
 import {CaptionGenerator, Font, TextStyle} from "./asset/captions";
 import {ProgressTimeline, Timeline} from "./animation/timeline";
 import {Text} from "./asset/text";
-import {loadFont} from "./utils/font_utils";
+import {loadFont} from "./utils/font_loading";
 
 /**
  * Here we verify if we can draw and select text for a specific language. We test the selecting part by drawing a
@@ -766,6 +766,59 @@ const canRenderText = async() => {
     text.draw();
 }
 
+const canTextFitBounds = async() => {
+    await loadFont('Poppins', 'https://storage.googleapis.com/lumen5-site-css/Poppins-Bold.ttf');
+
+    const fontFamily = 'Poppins';
+    const fontSize = 18;
+    const space = fontSize * 0.2
+    const lineHeight = fontSize * 1.2;
+    const text = TEXT_LINES[0];
+    const width = 100;
+    const height = 100;
+
+    const canvas = document.createElement('canvas');
+    canvas.width = width;
+    canvas.height = height;
+    document.body.appendChild(canvas);
+    const context = canvas.getContext('2d');
+    if (!context) {
+        throw new Error('Could not get canvas context');
+    }
+
+    const layoutText = (
+        text: string,
+        fontSize: number,
+        fontFamily: string,
+        space: number,
+        lineHeight: number,
+        width: number,
+        height: number
+    ) => {
+        context.font = `${fontSize}px ${fontFamily}`;
+        const words = getWords(text, 'en', 'ltr');
+        const metrics = words.map(word => context.measureText(word));
+        const result = layoutWords(metrics, space, lineHeight, width, height);
+        return {
+            words,
+            ...result,
+        }
+    }
+    let {words, positions, textFits} = layoutText(text, fontSize, fontFamily, space, lineHeight, width, height);
+    console.assert(!textFits, 'Text should not fit');
+    ({words, positions, textFits} = layoutText(text, fontSize/2, fontFamily, space/2, lineHeight/2, width, height));
+    console.assert(textFits, 'Text should fit');
+
+    words.forEach((word, i) => {
+        if (!positions[i]) {
+            return;
+        }
+        const x = positions[i].x
+        const y = positions[i].y
+        context.fillText(words[i], x, y);
+    });
+};
+
 // drawAllText();
 // drawLotsOfText();
 // transcriptToAnimation();
@@ -773,5 +826,6 @@ const canRenderText = async() => {
 // simpleVideoDraw();
 // pixiCanvasMultiSync();
 // dynamicStylingText();
-// dynamicStylingText1();
+dynamicStylingText1();
 // canRenderText();
+// canTextFitBounds();

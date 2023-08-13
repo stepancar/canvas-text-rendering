@@ -2,6 +2,7 @@ export type Position = {
     x: number,
     y: number,
 }
+
 export const layoutWords = (
     wordMetrics,
     wordSpace: number,
@@ -13,7 +14,6 @@ export const layoutWords = (
     let yPos = 0 + lineHeight;
     let wordPositions : Array<Position> = [];
     let lineIndices: number[] = [];
-    console.log('word metrics', wordMetrics.length);
 
     let xOffset = xPos;
     let yOffset = yPos;
@@ -27,6 +27,10 @@ export const layoutWords = (
             xOffset = xPos;
             yOffset += lineHeight;
             newLine = true;
+
+            if (yOffset > layoutHeight) {
+                return
+            }
         }
         else {
             newLine = false;
@@ -38,9 +42,13 @@ export const layoutWords = (
         lineIndices.push(wordMetrics.length - 1);
     }
 
+    // we should move some stuff around so this matches!!!
+    const textFits = wordPositions.length - 1 === wordMetrics.length;
+
     return {
         positions: wordPositions,
         lineIndices,
+        textFits,
     }
 }
 
