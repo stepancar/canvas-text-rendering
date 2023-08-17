@@ -1,4 +1,4 @@
-type InterpolationType = 'bezier' | 'stepped' | 'tan' | 'sigmoid';
+type InterpolationType = 'stepped' | 'tan' | 'sigmoid'; // add ease in and ease out
 
 function normalizedSigmoid(z) {
     return sigmoid((z * 10) - 5);

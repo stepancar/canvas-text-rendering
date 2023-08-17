@@ -29,6 +29,10 @@ export class Transcript {
         return this._words;
     }
 
+    get text() {
+        return this._words.map(word => word.text);
+    }
+
     get startTime() {
         return this._words[0].startTime;
     }
@@ -37,12 +41,11 @@ export class Transcript {
         return this._words[this._words.length - 1].endTime;
     }
     getActiveWordIndex(time) {
-        // console.log('getActiveWordIndex', time);
         if (time < this.startTime) {
             return -1;
         }
         if (time > this.endTime) {
-            return -1;
+            return - 1;
         }
         let result = this._words.findIndex(word => {
             return word.startTime <= time && word.endTime >= time;

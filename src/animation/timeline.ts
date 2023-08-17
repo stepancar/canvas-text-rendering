@@ -1,3 +1,5 @@
+import {ProgressIncrementer} from "./progressIncrementer";
+
 export class Timeline {
     _start: number;
     constructor() {

@@ -1,9 +1,7 @@
-import {GraphicStyle, ObjectAnimation, TextStyle} from "./captions";
+import {GraphicStyle, ObjectAnimation, TextStyle} from "./captionGenerator";
 import {getWords, layoutWords, Position, remapValue} from "../utils/utils";
 import {ProgressIncrementer} from "../animation/progressIncrementer";
 
-// what about text and font loading? Since we already load the CSS fonds for NTE
-// we shouldn't have to do any additional work.
 export class Text {
     private _text: string;
     private _highlights: Array<number> = [];
@@ -26,8 +24,10 @@ export class Text {
     private _objectIncrementer: Array<ProgressIncrementer> = [];
 
     private _multiplier = 2;
-    private _canvas: HTMLCanvasElement;
-    private _context: CanvasRenderingContext2D;
+    // private _canvas: HTMLCanvasElement | OffscreenCanvas
+    // private _context: CanvasRenderingContext2D | OffscreenCanvasRenderingContext2D
+    private _canvas: HTMLCanvasElement
+    private _context: CanvasRenderingContext2D
 
     _progress: number = 0.25;
     width: number = 200;
@@ -62,6 +62,9 @@ export class Text {
         this._canvas.height = this.height * this.multiplier;
         this._canvas.style.width = this.width + 'px';
         this._canvas.style.height = this.height + 'px';
+
+        // this._canvas = new OffscreenCanvas(this.width * this.multiplier, this.height * this.multiplier);
+
         this._context = this._canvas.getContext('2d')!;
 
         this._build();
@@ -109,13 +112,27 @@ export class Text {
         // store normal style metrics
         this._activateNormalStyle();
         this._normalWordMetrics = this._words.map(word => this.context.measureText(word));
-        ({positions: this._normalWordPositions, lineIndices : this._normalLineIndices} = layoutWords(this._normalWordMetrics, this.wordSpace, this.lineHeight, this.width, this.height));
+        ({positions: this._normalWordPositions, lineIndices : this._normalLineIndices} = layoutWords({
+            wordMetrics: this._normalWordMetrics,
+            startIndex: 0,
+            wordSpace: this.wordSpace,
+            lineHeight: this.lineHeight,
+            layoutWidth: this.width,
+            layoutHeight: this.height
+        }));
 
         // store highlight style metrics
         if (this._highlights.length !== 0) {
             this._activateHighlightStyle();
             this._highlightWordMetrics = this._words.map(word => this.context.measureText(word));
-            ({positions: this._highlightWordPositions, lineIndices : this._highlightLineIndices} = layoutWords(this._highlightWordMetrics, this.wordSpace, this.lineHeight, this.width, this.height));
+            ({positions: this._highlightWordPositions, lineIndices : this._highlightLineIndices} = layoutWords({
+                wordMetrics: this._highlightWordMetrics,
+                startIndex: 0,
+                wordSpace: this.wordSpace,
+                lineHeight: this.lineHeight,
+                layoutWidth: this.width,
+                layoutHeight: this.height
+            }));
         }
 
         // create animation incrementer
@@ -156,10 +173,11 @@ export class Text {
     }
 
     /**
-     * Draw the final text on the canvas. This includes the normal text, the highlighted text and the animated objects.
+     * Draw the text on the canvas. This includes the normal text, the highlighted text and graphics at their animated
+     * state.
      */
     draw() {
-        // update object animation
+        // update animation
         this._objectIncrementer.forEach((incrementer, index) => {
             incrementer.progress = this.progress;
             incrementer.update();

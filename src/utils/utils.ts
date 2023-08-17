@@ -3,13 +3,34 @@ export type Position = {
     y: number,
 }
 
+export const clamped = (value, min, max) => {
+    return Math.min(Math.max(value, min), max);
+}
+
+/**
+ * Layout words metrics within the given layout dimensions
+ * NOTE: we can optimize this function by:
+ * - use words instead of metrics. This would allow us to only measure the words we care about
+ * - each time we get the metrics for a word, we can cache it
+ * NOTE: we'll want to return a TextMetrics object here
+ */
 export const layoutWords = (
-    wordMetrics,
-    wordSpace: number,
-    lineHeight: number,
-    layoutWidth: number,
-    layoutHeight: number
-) => {
+    {
+        wordMetrics,
+        startIndex,
+        wordSpace,
+        lineHeight,
+        layoutWidth,
+        layoutHeight
+    }: {
+        wordMetrics: Array<TextMetrics>,
+        startIndex: number,
+        wordSpace: number,
+        lineHeight: number,
+        layoutWidth: number,
+        layoutHeight: number
+    }
+    ) => {
     let xPos = 0;
     let yPos = 0 + lineHeight;
     let wordPositions : Array<Position> = [];
@@ -18,10 +39,12 @@ export const layoutWords = (
     let xOffset = xPos;
     let yOffset = yPos;
     let newLine = false;
+    let lastIndex = startIndex;
     wordPositions.push({x: xOffset, y: yOffset});
-    wordMetrics.forEach((wordMetric, index) => {
-        // NOTE: don't use these properties as they are not consistent between node and web
-        const { width } = wordMetric;
+
+    for (let index = startIndex; index < wordMetrics.length; index++) {
+        const { width } = wordMetrics[index]
+        lastIndex = index;
         xOffset += width + wordSpace;
         if (wordMetrics[index + 1] && xOffset + wordMetrics[index + 1].width > layoutWidth) {
             xOffset = xPos;
@@ -29,7 +52,7 @@ export const layoutWords = (
             newLine = true;
 
             if (yOffset > layoutHeight) {
-                return
+                break;
             }
         }
         else {
@@ -37,8 +60,8 @@ export const layoutWords = (
         }
         wordPositions.push({x: xOffset, y: yOffset});
         if (newLine) lineIndices.push(index);
-    });
-    if (lineIndices[lineIndices.length - 1] !== wordMetrics.length - 1) {
+    }
+    if (lineIndices[lineIndices.length - 1] !== lastIndex) {
         lineIndices.push(wordMetrics.length - 1);
     }
 
@@ -48,6 +71,7 @@ export const layoutWords = (
     return {
         positions: wordPositions,
         lineIndices,
+        lastIndex,
         textFits,
     }
 }

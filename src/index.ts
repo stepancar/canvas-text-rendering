@@ -1,10 +1,11 @@
+import anime from 'animejs';
 import Stats from 'stats.js';
 import LANGUAGES, {LONG_TEXT, TEXT_LINES} from "./library";
 import TRANSCRIPT from "../resources/transcript.json";
 import CHRIS_TRANSCRIPT from '../resources/transcript_chris_talking.json'
 import {
     getWords, layoutWords,
-    loadAudio,
+    loadAudio, Position,
     simplifyTranscript,
 } from "./utils/utils";
 import {
@@ -13,10 +14,14 @@ import {
     Texture
 } from "pixi.js";
 import {Transcript} from "./asset/transcript";
-import {CaptionGenerator, Font, TextStyle} from "./asset/captions";
+import {CaptionGenerator, Font, TextStyle} from "./asset/captionGenerator";
 import {ProgressTimeline, Timeline} from "./animation/timeline";
 import {Text} from "./asset/text";
 import {loadFont} from "./utils/font_loading";
+import {ProgressIncrementer} from "./animation/progressIncrementer";
+import {InterpolationCache} from "./animation/interpolationCache";
+import {CompositionIncrementer} from "./animation/compositionIncrementer";
+import {Caption} from "./asset/caption";
 
 /**
  * Here we verify if we can draw and select text for a specific language. We test the selecting part by drawing a
@@ -65,7 +70,6 @@ const drawAndSelectText = async(languageIndex: number) => {
     if (direction === 'rtl') {
         words = words.reverse();
     }
-    // words.push('😜😂😍');
 
     const yPos = multiplier * 50;
     const xPos = multiplier * 5;
@@ -227,7 +231,11 @@ const drawLotsOfText = async() => {
     });
 }
 
-const transcriptToAnimation = async() => {
+/**
+ * A Karaoke Fancy caption implementation example. Here we animate the dynamic style of the text based on the transcript.
+ * In this example we highlight the active word by placing a colored graphic behind it.
+ */
+const fancyCaptionGeneratorSelect = async() => {
     // to see how long it takes to render a frame
     const stats = new Stats();
     stats.showPanel(0); // 0: fps, 1: ms, 2: mb, 3+: custom
@@ -360,7 +368,11 @@ const transcriptToAnimation = async() => {
     audio.pause();
 }
 
-const transcriptToAnimation2 = async() => {
+/**
+ * Another Karaoke Fancy caption implementation example. Here we animate the dynamic style of the text based on the
+ * transcript. In this example we lighten the spoken words by making them lighter.
+ */
+const fancyCaptionGeneratorLighten = async() => {
     // to see how long it takes to render a frame
     const stats = new Stats();
     stats.showPanel( 0 ); // 0: fps, 1: ms, 2: mb, 3+: custom
@@ -437,11 +449,10 @@ const transcriptToAnimation2 = async() => {
         startTime: 0,
         endTime: transcript.endTime,
         chunkStyle: {
-            style: 'duration',
-            duration: 5000,
+            style: 'bounds'
         },
         width: 350,
-        height: 350,
+        height: 300,
         fancyStyle: {
             style: 'opacity',
             level: 'word',
@@ -501,6 +512,96 @@ const transcriptToAnimation2 = async() => {
         video.currentTime = 0.0;
     });
     captions.draw();
+}
+
+
+const fancyCaptionAppear = async() => {
+    const div = document.createElement('div');
+    div.innerText = 'Fancy caption with appear dynamic style'
+    document.body.appendChild(div);
+
+    // transcript
+    const groupId = 'da5b2a03-ad73-a936-8b5f-f6b485834a48';
+    const {words, language, textDirection} = simplifyTranscript(CHRIS_TRANSCRIPT, groupId)
+    const transcript = new Transcript({
+        name: 'global',
+        words,
+        language,
+        textDirection,
+    });
+
+    await loadFont('Poppins', 'https://storage.googleapis.com/lumen5-site-css/Poppins-Bold.ttf');
+
+    const caption = new Caption({
+        transcript,
+        normalStyle: {
+            fontFamily: 'Poppins',
+            fontSize: 28,
+            fontColor: 'rgba(0,0,0, 1.0)',
+            lineHeight: 1.6,
+        },
+        chunkStyle: {
+            style: 'bounds'
+        },
+        objectAnimation: [
+            {
+                property: 'opacity',
+                element: 'word',
+                interpolation: {
+                    type: 'sigmoid', // hardcoded
+                    duration: 150,
+                },
+                range: [0, 1],
+            },
+            {
+                property: 'x',
+                element: 'word',
+                interpolation: {
+                    type: 'sigmoid', // hardcoded
+                    duration: 150,
+                },
+                range: [-10, 0],
+            }
+        ]
+    })
+
+    const currentTimeInput = document.createElement('input');
+    currentTimeInput.type="range";
+    currentTimeInput.min="0";
+    // currentTimeInput.max=`${transcript.duration}`;
+    currentTimeInput.max="10000";
+    currentTimeInput.value="0";
+    currentTimeInput.style.width = '500px';
+    currentTimeInput.addEventListener('input', (e) => {
+        caption.currentTime = parseInt(currentTimeInput.value);
+        caption.draw();
+    });
+    document.body.style.display = 'grid';
+    document.body.appendChild(currentTimeInput);
+
+    const plusButton = document.createElement('button');
+    plusButton.innerText = '+10ms';
+    plusButton.style.width = '500px';
+    plusButton.addEventListener('click', () => {
+        const newTime = caption.currentTime + 10;
+        currentTimeInput.value = `${newTime}`;
+        caption.currentTime = newTime;
+        caption.draw();
+    });
+    document.body.appendChild(plusButton);
+
+    const minusButton = document.createElement('button');
+    minusButton.innerText = '-10ms';
+    minusButton.style.width = '500px';
+    minusButton.addEventListener('click', () => {
+        const newTime = caption.currentTime - 10;
+        currentTimeInput.value = `${newTime}`;
+        caption.currentTime = newTime;
+        caption.draw();
+    });
+    document.body.appendChild(minusButton);
+
+    currentTimeInput.value = `${caption.currentTime}`;
 }
 
 /**
@@ -566,6 +667,8 @@ const pixiCanvasMultiSync = async() => {
         context.fillText(text, xOffset, yOffset);
     }
 
+    // create a canvas for each text line
+    // this will represent one asset
     const assets: any[] = [];
     const tc = TEXT_LINES.length;
     console.log('rendering', tc, 'text lines')
@@ -573,6 +676,7 @@ const pixiCanvasMultiSync = async() => {
         assets.push(create2dContext(1200, 100, i));
     }
 
+    // go through all "assets" and draw the text
     let frame = 0;
     let add = 1;
     const pixiDraw = () => {
@@ -595,63 +699,7 @@ const pixiCanvasMultiSync = async() => {
 }
 
 /**
- * Simple example to confirm how managed textures are different from bound gl textures.
- * Since WebGL1 only supports 16 bound textures, we can't use more than 16 textures in a single draw call.
- */
-// NOTE: we need to duplicate container_ship_480_1.mp4 20 times for this test
-const simpleVideoDraw = async () => {
-    const width = 400;
-    const height = 400;
-    const app = new Application({
-        backgroundColor: 0xffffff,
-        antialias: true,
-        autoStart: false,
-        width,
-        height,
-    });
-    (app.view as HTMLCanvasElement).id = 'pixiCanvas';
-    document.body.appendChild((app as any).view);
-    global.app = app;
-
-
-    let j = 0;
-    let k = 0;
-    // the moment we use more than 16 textures, we'll have
-    // 2 draw calls, for each call we'll update the individual
-    // gl textures so we can't manually update our gl textures.
-    // we would have to save them as textures firs (or use our
-    // existing textures better). The latter probably doesn't
-    // work for 4K textures
-    for (let i = 0; i < 20; i++) {
-        const videoTexture = Texture.from(`resources/container_ship_480_${i+1}.mp4`);
-        const videoSprite = new Sprite(videoTexture);
-        (videoSprite.texture.baseTexture.resource as any).source.muted = true;
-        videoSprite.scale.set(0.1, 0.1);
-        videoSprite.y = k * 30;
-        videoSprite.x = j * 75;
-        app.stage.addChild(videoSprite);
-
-        k++;
-        if (k === 5) {
-            k = 0;
-            j += 1;
-        }
-    }
-
-    await new Promise((resolve, reject) => {
-       setTimeout(() => resolve('done'), 1000);
-    });
-
-    // app.ticker.start();
-    app.ticker.update();
-
-    // bounds textures = 16
-    // managed textures = 20
-    // app.renderer.texture.boundTextures
-}
-
-/**
- * This is a test to see if we can clip or mask text
+ * Here we mockup up one of our more complex dynamic styles. This is a test to see if we can clip or mask text
  */
 const dynamicStylingText = async () => {
     await loadFont('Poppins', 'https://storage.googleapis.com/lumen5-site-css/Poppins-Bold.ttf');
@@ -682,6 +730,7 @@ const dynamicStylingText = async () => {
         height: 200,
     })
     document.body.appendChild(text.canvas);
+
     text.progress = 0.5;
     text.draw();
 
@@ -692,6 +741,7 @@ const dynamicStylingText = async () => {
         text.draw();
         requestAnimationFrame(draw)
     };
+    // uncomment line below to start animation
     // requestAnimationFrame(draw)
 }
 
@@ -732,9 +782,10 @@ const dynamicStylingText1 = async () => {
     const timeline = new Timeline();
     const progressTimeline = new ProgressTimeline({
         start: 0,
-        end: 2000,
+        end: 1000,
         loop: true
     });
+
     const draw = () => {
         const currentTime = timeline.currentTime;
         text.progress = progressTimeline.value(currentTime);
@@ -751,6 +802,8 @@ const dynamicStylingText1 = async () => {
 const canRenderText = async() => {
     const languages = Object.keys(LANGUAGES);
 
+    // NOTE that we don't load any fonts here
+    // in our current fontkit based system we won't be able to render any text
     const text = new Text({
         text: LANGUAGES[languages[3]].text,
         normalStyle: {
@@ -766,6 +819,130 @@ const canRenderText = async() => {
     text.draw();
 }
 
+/**
+ * Visual test to verify the behaviour of our layout algorithm.
+ */
+const layoutText = async() => {
+    console.log('layoutText')
+    await loadFont('Poppins', 'https://storage.googleapis.com/lumen5-site-css/Poppins-Bold.ttf');
+
+    // canvas for measuring text
+    const canvas = document.createElement('canvas');
+    const context = canvas.getContext('2d');
+    if (!context) {
+        throw new Error('Could not get canvas context');
+    }
+
+    const options = {
+        fontSize: 24,
+        width: 200,
+        height: 200,
+    }
+    const text = [TEXT_LINES[0], TEXT_LINES[1]].join(' ');
+    const words = getWords(text, 'en', 'ltr');
+    const fontFamily = 'Poppins';
+
+    const renderText = ({fontSize, width, height}) => {
+        // cleanup
+        while(document.getElementById('textCanvas')) {
+            document.getElementById('textCanvas')?.remove();
+        }
+
+        const space = fontSize * 0.2
+        const lineHeight = fontSize * 1.2;
+
+        context.font = `${fontSize}px ${fontFamily}`;
+        const metrics = words.map(word => context.measureText(word));
+        const textWidth = width * 0.8;
+        const textHeight = height * 0.8;
+
+        let startIndex = 0;
+        let lastIndex = 0;
+        let positions: Array<Position> = [];
+
+        while(lastIndex !== words.length - 1) {
+            const canvas = document.createElement('canvas');
+            canvas.width = width;
+            canvas.height = height;
+            canvas.id = 'textCanvas';
+            document.body.appendChild(canvas);
+            const context = canvas.getContext('2d');
+            if (!context) {
+                throw new Error('Could not get canvas context');
+            }
+            context.font = `${fontSize}px ${fontFamily}`;
+
+            ({positions, lastIndex} = layoutWords({
+                wordMetrics: metrics,
+                startIndex,
+                wordSpace: space,
+                lineHeight,
+                layoutWidth: textWidth,
+                layoutHeight: textHeight
+            }));
+
+            context.clearRect(0, 0, width, height);
+
+            // we're making the area a bit smaller to ensure we can see if there would be any clipping
+            // visualize bounds
+            context.fillStyle = 'rgb(255,0,0, 0.1)';
+            context.fillRect(0, 0, textWidth, textHeight);
+
+            context.fillStyle = 'rgb(0,0,0)';
+            let i, j;
+            for (i = startIndex, j = 0; i < lastIndex; i++, j++) {
+                const x = positions[j].x
+                const y = positions[j].y
+                context.fillText(words[i], x, y);
+            }
+
+            startIndex = lastIndex;
+        }
+    }
+
+    // controls
+    const controls = document.createElement('div');
+    document.body.appendChild(controls);
+
+    const fontSizeRange = document.createElement('input');
+    fontSizeRange.type="range";
+    fontSizeRange.min="6";
+    fontSizeRange.max="64";
+    fontSizeRange.value="24";
+    fontSizeRange.addEventListener('input', (e) => {
+        options.fontSize = parseInt(fontSizeRange.value);
+        renderText(options);
+    });
+    controls.appendChild(fontSizeRange);
+
+    const widthRange = document.createElement('input');
+    widthRange.type="range";
+    widthRange.min="40";
+    widthRange.max="300";
+    widthRange.value="200";
+    widthRange.addEventListener('input', (e) => {
+        options.width = parseInt(widthRange.value);
+        renderText(options);
+    });
+    controls.appendChild(widthRange);
+
+    const heightRange = document.createElement('input');
+    heightRange.type="range";
+    heightRange.min="40";
+    heightRange.max="300";
+    heightRange.value="200";
+    heightRange.addEventListener('input', (e) => {
+        options.height = parseInt(heightRange.value);
+        renderText(options);
+    });
+    controls.appendChild(heightRange);
+
+    renderText(options);
+}
+
+/**
+ * Basic example of a canTextFitBounds test. This is a test to see if we can fit text within a given width and height.
+ */
 const canTextFitBounds = async() => {
     await loadFont('Poppins', 'https://storage.googleapis.com/lumen5-site-css/Poppins-Bold.ttf');
 
@@ -789,24 +966,53 @@ const canTextFitBounds = async() => {
     const layoutText = (
         text: string,
         fontSize: number,
-        fontFamily: string,
         space: number,
         lineHeight: number,
+        fontFamily: string,
         width: number,
         height: number
     ) => {
         context.font = `${fontSize}px ${fontFamily}`;
         const words = getWords(text, 'en', 'ltr');
         const metrics = words.map(word => context.measureText(word));
-        const result = layoutWords(metrics, space, lineHeight, width, height);
+        const result = layoutWords({
+            wordMetrics: metrics,
+            startIndex: 0,
+            wordSpace: space,
+            lineHeight,
+            layoutWidth: width,
+            layoutHeight: height
+        });
         return {
             words,
             ...result,
         }
     }
-    let {words, positions, textFits} = layoutText(text, fontSize, fontFamily, space, lineHeight, width, height);
+
+    // verify that text fits
+    let fontScale = 1.0;
+    let {words, positions, textFits} = layoutText(
+        text,
+        fontSize * fontScale,
+        space * fontScale,
+        lineHeight * fontScale,
+        fontFamily,
+        width,
+        height
+    );
     console.assert(!textFits, 'Text should not fit');
-    ({words, positions, textFits} = layoutText(text, fontSize/2, fontFamily, space/2, lineHeight/2, width, height));
+
+    // make the font smaller and try again
+    fontScale = 0.5;
+    ({words, positions, textFits} = layoutText(
+        text,
+        fontSize * fontScale,
+        space * fontScale,
+        lineHeight * fontScale,
+        fontFamily,
+        width,
+        height
+    ));
     console.assert(textFits, 'Text should fit');
 
     words.forEach((word, i) => {
@@ -819,13 +1025,325 @@ const canTextFitBounds = async() => {
     });
 };
 
+/**
+ * Here we test out the staggering feature of anime.js. We want to see if we could use this library as a replacement
+ * of our current animation system. The immediate issue we can see in the following example is that the animation is
+ * longer then expected. While we request and animation of 4000ms, we end up with an animation 4400ms long.
+ */
+const animate = () => {
+    const canvas = document.createElement('canvas');
+    canvas.width = 400;
+    canvas.height = 400;
+    document.body.appendChild(canvas);
+    const context = canvas.getContext('2d');
+    if (!context) {
+        throw new Error('Could not get canvas context');
+    }
+
+    const properties = [
+        {y: 0},
+        {y: 0},
+        {y: 0}
+    ];
+
+    // what about staggering?
+    // what about alternate? instead of looping?
+    const introDuration = 1000;
+    const inbetweenDuration = 2000; // pause between animations so our users can read the text
+    const outroDuration = 1000;
+    const totalDuration = introDuration + inbetweenDuration + outroDuration;
+
+    const globalDelay = 100;
+    const anim = anime({
+        targets: properties,
+        keyframes: [
+            // staggering at the start propagates to the end
+            {y: 100, duration: introDuration, easing: 'easeInOutSine', delay: anime.stagger(200)},
+            {y: 100, duration: inbetweenDuration}, //, delay: anime.stagger(-200)}, // negate delay
+            {y: 0, duration: outroDuration, easing: 'easeInOutSine'}, // however, we can't re-apply it here
+        ],
+        // y: 100,
+        // endDelay: 1000,
+        // loop: true,
+        // this is the duration of each animation for each element so if we add a delay to an element then it will
+        // take longer for the animation to complete
+        // duration: 1000,
+        autoplay: false,
+        easing: 'linear',
+        // offset each element by 100ms on top of the global delay
+        // delay: anime.stagger(100),
+        // delay: anime.stagger(100, {start: globalDelay}),
+        // begin: (anim) => {
+        //     console.log('begin', anim.progress, JSON.stringify(properties));
+        // },
+        update: (anim) => {
+            // console.log('update', anim.progress, JSON.stringify(properties));
+
+            // draw the animation back until 4000ms
+            const remappedProgress = anim.duration / totalDuration;
+            const xValue = (anim.progress * remappedProgress / 100) * canvas.width
+
+            context.beginPath();
+            context.fillStyle = 'rgb(255,0,0)';
+            context.rect(xValue, properties[0].y, 1, 1);
+            context.fill();
+
+            context.beginPath();
+            context.fillStyle = 'rgb(0,255,0)';
+            context.rect(xValue, properties[1].y, 1, 1);
+            context.fill();
+
+            context.beginPath();
+            context.fillStyle = 'rgb(0,0,255)';
+            context.rect(xValue, properties[2].y, 1, 1);
+            context.fill();
+
+            // draw a scaled down version of the animation
+            const scaledXValue = (anim.progress / 100) * canvas.width
+
+            context.beginPath();
+            context.fillStyle = 'rgb(255,0,0)';
+            context.rect(scaledXValue, properties[0].y + 200, 1, 1);
+            context.fill();
+
+            context.beginPath();
+            context.fillStyle = 'rgb(0,255,0)';
+            context.rect(scaledXValue, properties[1].y + 200, 1, 1);
+            context.fill();
+
+            context.beginPath();
+            context.fillStyle = 'rgb(0,0,255)';
+            context.rect(scaledXValue, properties[2].y + 200, 1, 1);
+            context.fill();
+        },
+        round: 10,
+    });
+
+    // borders
+    context.beginPath();
+    context.fillStyle = 'rgb(0,0,0)';
+    context.rect(1, 0, 1, 100);
+    context.rect(1, 200, 1, 100);
+    context.fill();
+
+    const introEnd = (introDuration / totalDuration) * canvas.width;
+    context.rect(introEnd, 0, 1, 100);
+    context.rect(introEnd, 200, 1, 100);
+
+    const outroStart = ((introDuration + inbetweenDuration) / totalDuration) * canvas.width;
+    context.rect(outroStart, 0, 1, 100);
+    context.rect(outroStart, 200, 1, 100);
+    context.fill();
+
+    context.rect(canvas.width - 1, 0, 1, 100);
+    context.rect(canvas.width - 1, 200, 1, 100);
+    context.fill();
+
+    // draw info
+    const durationString = `Duration - Actual: ${anim.duration}ms - Expected (and displayed): ${totalDuration}ms`;
+    context.fillText(durationString, 0, 120);
+    context.fillText(`Scaled down version to match ${totalDuration}ms`, 0, 320);
+
+    // draw curves
+    const samples = 1000;
+    const increment = 1.0 / samples;
+    let progress = 0.0;
+    for (let i = 0; i < samples; i++) {
+        progress += increment;
+        anim.seek(progress * anim.duration);
+    }
+
+}
+
+const animateMirror = () => {
+    const canvas = document.createElement('canvas');
+    canvas.width = 400;
+    canvas.height = 200;
+    document.body.appendChild(canvas);
+    const context = canvas.getContext('2d');
+    if (!context) {
+        throw new Error('Could not get canvas context');
+    }
+
+    const properties = [
+        {y: 0},
+        {y: 0},
+        {y: 0}
+    ];
+
+    const introDuration = 1000;
+    const inbetweenDuration = 2000; // pause between animations so our users can read the text
+    const outroDuration = 1000;
+    const totalDuration = introDuration + inbetweenDuration + outroDuration;
+
+    // loop and alternate don't seem to work in combination with seek
+    const globalDelay = 200;
+    let mirror = false;
+    const anim = anime({
+        targets: properties,
+        y: 100,
+        endDelay: 1000,
+        // loop: true,
+        // this is the duration of each animation for each element so if we add a delay to an element then it will
+        // take longer for the animation to complete
+        duration: 1000,
+        autoplay: false,
+        easing: 'easeInOutSine',
+        // direction: 'alternate',
+        // offset each element by 100ms on top of the global delay
+        // delay: anime.stagger(200),
+        delay: anime.stagger(200),
+        // begin: (anim) => {
+        //     console.log('begin', anim.progress, JSON.stringify(properties));
+        // },
+        update: (anim) => {
+            // draw a scaled down version of the animation
+            let scaledXValue = anim.progress / 200
+            if (mirror) {
+                scaledXValue = 0.5 + (0.5 - scaledXValue);
+            }
+            scaledXValue *= canvas.width;
+
+            context.beginPath();
+            context.fillStyle = 'rgb(255,0,0)';
+            context.rect(scaledXValue, properties[0].y, 1, 1);
+            context.fill();
+
+            context.beginPath();
+            context.fillStyle = 'rgb(0,255,0)';
+            context.rect(scaledXValue, properties[1].y, 1, 1);
+            context.fill();
+
+            context.beginPath();
+            context.fillStyle = 'rgb(0,0,255)';
+            context.rect(scaledXValue, properties[2].y, 1, 1);
+            context.fill();
+        },
+        round: 10,
+    });
+
+    // borders
+    context.beginPath();
+    context.fillStyle = 'rgb(0,0,0)';
+    context.rect(1, 0, 1, 100);
+    context.fill();
+
+    const introEnd = (introDuration / totalDuration) * canvas.width;
+    context.rect(introEnd, 0, 1, 100);
+
+    const outroStart = ((introDuration + inbetweenDuration) / totalDuration) * canvas.width;
+    context.rect(outroStart, 0, 1, 100);
+    context.fill();
+
+    context.rect(canvas.width - 1, 0, 1, 100);
+    context.fill();
+
+    // draw info
+    context.fillText(`Scaled down mirrored version to match ${totalDuration}ms`, 0, 120);
+
+    // draw curves
+    const samples = 1000;
+    const increment = 1.0 / samples;
+    let progress = 0.0;
+    for (let i = 0; i < samples; i++) {
+        // forward
+        if (i <= samples / 2) {
+            progress += increment * 2;
+            mirror = false;
+        }
+        // backward
+        else {
+            progress -= increment * 2;;
+            mirror = true
+        }
+        anim.seek(progress * anim.duration);
+    }
+}
+const animatedIncrementer = () => {
+    const canvas = document.createElement('canvas');
+    canvas.width = 400;
+    canvas.height = 400;
+    document.body.appendChild(canvas);
+    const context = canvas.getContext('2d');
+    if (!context) {
+        throw new Error('Could not get canvas context');
+    }
+
+    const interpolation = new InterpolationCache(1000, 'sigmoid')
+    const intro = new ProgressIncrementer(3, interpolation);
+    intro.length = 3;
+    intro.duration = 1000;
+    intro.offset = 200;
+
+    const pause = 2000;
+
+    const outro = new ProgressIncrementer(3, interpolation);
+    // outro.revert = true;
+    outro.length = 3;
+    outro.duration = 1000;
+    outro.offset = 200;
+
+    const ipo = new CompositionIncrementer(intro, outro, pause);
+
+    const samples = 1000;
+    const increment = 1.0 / samples;
+    let progress = 0.0;
+    for (let i = 0; i < samples; i++) {
+        ipo.progress += increment;
+
+        context.beginPath();
+        context.fillStyle = 'rgb(255,0,0)';
+        context.rect(ipo.progress * canvas.width, ipo.array[0] * 100, 1, 1);
+        context.fill();
+
+        context.beginPath();
+        context.fillStyle = 'rgb(0,255,0)';
+        context.rect(ipo.progress * canvas.width, ipo.array[1] * 100, 1, 1);
+        context.fill();
+
+        context.beginPath();
+        context.fillStyle = 'rgb(0,0,255)';
+        context.rect(ipo.progress * canvas.width, ipo.array[2] * 100, 1, 1);
+        context.fill();
+    }
+
+    // borders
+    context.beginPath();
+    context.fillStyle = 'rgb(0,0,0)';
+    context.rect(1, 0, 1, 100);
+    context.fill();
+
+    const introEnd = (intro.duration / ipo.duration) * canvas.width;
+    context.rect(introEnd, 0, 1, 100);
+
+    const outroStart = ((intro.duration + pause) / ipo.duration) * canvas.width;
+    context.rect(outroStart, 0, 1, 100);
+    context.fill();
+
+    context.rect(canvas.width - 1, 0, 1, 100);
+    context.fill();
+
+    // draw info
+    context.fillText(`Unscaled while respecting intro and outro duration`, 0, 120);
+
+}
+
 // drawAllText();
 // drawLotsOfText();
-// transcriptToAnimation();
-// transcriptToAnimation2();
-// simpleVideoDraw();
+
+// fancyCaptionGeneratorSelect();
+// fancyCaptionGeneratorLighten();
+fancyCaptionAppear();
+
 // pixiCanvasMultiSync();
+
 // dynamicStylingText();
-dynamicStylingText1();
+// dynamicStylingText1();
+
 // canRenderText();
 // canTextFitBounds();
+// layoutText();
+
+// animate();
+// animateMirror();
+// animatedIncrementer();

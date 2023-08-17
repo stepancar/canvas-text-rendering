@@ -185,70 +185,11 @@ export type ChunkStyle = {
     duration?: number,
 }
 
-
-// appear
-// chunkDuration: 1000
-// objectAnimation: [{
-//      property: 'opacity',
-//      level: 'letter', // animate word from start to end in x
-//      interpolation: 'stepped',
-//      layout: 'onTheFly',
-//      start: '0',
-//      end: '1',
-// }]
-
-// fade
-// chunkDuration: 1000
-// objectAnimation: [{
-//      property: 'opacity',
-//      level: 'letter', // animate word from start to end in x
-//      interpolation: 'linear',
-//      layout: 'atTheStart',
-//      start: 0,
-//      end: 1,
-// }]
-
-// swipe
-// chunkDuration: 1000
-// objectAnimation: [{
-//      property: 'opacity',
-//      level: 'word',
-//      interpolation: 'linear',
-//      layout: 'atTheStart',
-//      start: 0,
-//      end: 1,
-// },
-// {
-//      property: 'x',
-//      level: 'word',
-//      interpolation: 'linear',
-//      layout: 'atTheStart',
-//      start: 0,
-//      end: 100,
-// }]
-
-// karaoke (highlight active word)
-// chunkDuration: 1000
-// colorGraphics: [{
-//      property: 'opacity',
-//      level: 'word',
-//      interpolation: 'stepped',
-//      layout: 'atTheStart',
-//      start: 0,
-//      end: 1,
-// }]
-
-
-// not relevant dynamic styling properties
-// delay?
-// percentage offset
-// zigZagPerLine
-// zigZagPerLineStart
-// shouldOffsetPropertyValue
-// mirrorPercentageOffset
-// startMulti
-// end Multi
-
+/**
+ * The CaptionGenerator is responsible for displaying the right captions at the right time.
+ * This includes:
+ * - creating the necessary chunk of text for the given time
+ */
 export class CaptionGenerator {
     // global transcript container the entire transcript of the media
     private _transcript: Transcript;
@@ -257,8 +198,9 @@ export class CaptionGenerator {
     private _currentTime = -1;
 
     private _normalStyle: TextStyle;
-    private _highlightStyle: TextStyle | null = null;
     private _normalFont: Font;
+
+    private _highlightStyle: TextStyle | null = null;
     private _highlightFont: Font | null = null;
 
     private _x: number;
@@ -446,7 +388,7 @@ export class CaptionGenerator {
         return this._currentTime;
     }
     set currentTime(time) {
-        // console.log(this.transcript.name);
+        console.log(this.transcript.name, 'chunk style:', this.chunkStyle.style);
 
         // nothing to do if we're not within the time range
         if (this.startTime > time || this.endTime < time) {
@@ -464,6 +406,7 @@ export class CaptionGenerator {
             if (activeWordIndex <= this._captionEndIndex) {
                 return;
             }
+
             const {startIndex, endIndex} = this.getWordsForBounds(activeWordIndex);
             transcript = this.transcript.createTranscriptFromWordRange(startIndex, endIndex);
             this._captionStartIndex = startIndex;
@@ -533,7 +476,7 @@ export class CaptionGenerator {
      * Get the next slice of word indices that fit within the given bounds
      */
     getWordsForBounds(startWordIndex: number) {
-        // console.log('createTranscriptFromBounds', startWordIndex);
+        console.log('createTranscriptFromBounds', startWordIndex);
         // console.log('bounds', this.width, this.height);
         this._activateNormalFont();
         const textArray = this.transcript.words.map(word => word.text);
