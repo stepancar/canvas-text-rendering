@@ -21,7 +21,7 @@ import {loadFont} from "./utils/font_loading";
 import {ProgressIncrementer} from "./animation/progressIncrementer";
 import {InterpolationCache} from "./animation/interpolationCache";
 import {CompositionIncrementer} from "./animation/compositionIncrementer";
-import {Caption} from "./asset/caption";
+import {Caption, PixiCaption} from "./asset/caption";
 
 /**
  * Here we verify if we can draw and select text for a specific language. We test the selecting part by drawing a
@@ -373,6 +373,10 @@ const fancyCaptionGeneratorSelect = async() => {
  * transcript. In this example we lighten the spoken words by making them lighter.
  */
 const fancyCaptionGeneratorLighten = async() => {
+    // await new Promise((resolve, reject) => {
+    //     setTimeout(() => resolve('done'), 2000);
+    // });
+
     // to see how long it takes to render a frame
     const stats = new Stats();
     stats.showPanel( 0 ); // 0: fps, 1: ms, 2: mb, 3+: custom
@@ -516,6 +520,10 @@ const fancyCaptionGeneratorLighten = async() => {
 
 
 const fancyCaptionAppear = async() => {
+    // await new Promise((resolve, reject) => {
+    //     setTimeout(() => resolve('done'), 2000);
+    // });
+
     const div = document.createElement('div');
     div.innerText = 'Fancy caption with appear dynamic style'
     document.body.appendChild(div);
@@ -564,6 +572,7 @@ const fancyCaptionAppear = async() => {
             }
         ]
     })
+    document.body.appendChild(caption.canvas);
 
     const currentTimeInput = document.createElement('input');
     currentTimeInput.type="range";
@@ -602,6 +611,87 @@ const fancyCaptionAppear = async() => {
     document.body.appendChild(minusButton);
 
     currentTimeInput.value = `${caption.currentTime}`;
+    caption.currentTime = 3000;
+    caption.draw();
+}
+
+const pixiFancyCaptionAppear = async() => {
+    await new Promise((resolve, reject) => {
+        setTimeout(() => resolve('done'), 2000);
+    });
+
+    const height = 300;
+    const width = 600;
+    const app = new Application({
+        backgroundColor: 0xffffff,
+        antialias: true,
+        autoStart: false,
+        width,
+        height,
+    });
+    (app.view as HTMLCanvasElement).id = 'pixiCanvas';
+    document.body.appendChild((app as any).view);
+
+    const groupId = 'da5b2a03-ad73-a936-8b5f-f6b485834a48';
+    const {words, language, textDirection} = simplifyTranscript(CHRIS_TRANSCRIPT, groupId)
+    const transcript = new Transcript({
+        name: 'global',
+        words,
+        language,
+        textDirection,
+    });
+
+    await loadFont('Poppins', 'https://storage.googleapis.com/lumen5-site-css/Poppins-Bold.ttf');
+
+    const caption = new PixiCaption({
+        transcript,
+        normalStyle: {
+            fontFamily: 'Poppins',
+            fontSize: 28,
+            fontColor: 'rgba(0,0,0, 1.0)',
+            lineHeight: 1.6,
+        },
+        chunkStyle: {
+            style: 'bounds'
+        },
+        objectAnimation: [
+            {
+                property: 'opacity',
+                element: 'word',
+                interpolation: {
+                    type: 'sigmoid', // hardcoded
+                    duration: 150,
+                },
+                range: [0, 1],
+            },
+            {
+                property: 'x',
+                element: 'word',
+                interpolation: {
+                    type: 'sigmoid', // hardcoded
+                    duration: 150,
+                },
+                range: [-10, 0],
+            },
+        ],
+        x: 10,
+        y: 10,
+        width: 300,
+        height: 200
+    })
+    app.stage.addChild(caption.sprite);
+
+    let time = 0;
+    const draw = () => {
+        caption.currentTime = time;
+        caption.draw();
+        time+=10;
+    };
+    app.ticker.add(draw);
+    app.ticker.start();
+
+    console.assert(caption.getBounds().x === 10);
+    console.assert(caption.getBounds().width === 300);
 }
 
 /**
@@ -1333,7 +1423,8 @@ const animatedIncrementer = () => {
 
 // fancyCaptionGeneratorSelect();
 // fancyCaptionGeneratorLighten();
-fancyCaptionAppear();
+// fancyCaptionAppear();
+// pixiFancyCaptionAppear();
 
 // pixiCanvasMultiSync();
 

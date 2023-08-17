@@ -63,8 +63,6 @@ export class Text {
         this._canvas.style.width = this.width + 'px';
         this._canvas.style.height = this.height + 'px';
 
-        // this._canvas = new OffscreenCanvas(this.width * this.multiplier, this.height * this.multiplier);
-
         this._context = this._canvas.getContext('2d')!;
 
         this._build();
@@ -107,6 +105,7 @@ export class Text {
      * Here we cache the different metrics for the text since they do not change during drawing
      */
     _build() {
+        // create metrics
         this._words = getWords(this._text, 'en', 'ltr');
 
         // store normal style metrics
@@ -135,7 +134,7 @@ export class Text {
             }));
         }
 
-        // create animation incrementer
+        // create animation incrementer so we can animate the text, element by element
         if (this.objectAnimation.length !== 0) {
             this.objectAnimation.map((animation, index) => {
                 let arraySize = 0;
