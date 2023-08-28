@@ -114,6 +114,7 @@ export class Text {
         ({positions: this._normalWordPositions, lineIndices : this._normalLineIndices} = layoutWords({
             wordMetrics: this._normalWordMetrics,
             startIndex: 0,
+            fontSize: this.fontSize,
             wordSpace: this.wordSpace,
             lineHeight: this.lineHeight,
             layoutWidth: this.width,
@@ -127,6 +128,7 @@ export class Text {
             ({positions: this._highlightWordPositions, lineIndices : this._highlightLineIndices} = layoutWords({
                 wordMetrics: this._highlightWordMetrics,
                 startIndex: 0,
+                fontSize: this.fontSize,
                 wordSpace: this.wordSpace,
                 lineHeight: this.lineHeight,
                 layoutWidth: this.width,

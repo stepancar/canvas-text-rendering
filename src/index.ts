@@ -616,9 +616,9 @@ const fancyCaptionAppear = async() => {
 }
 
 const pixiFancyCaptionAppear = async() => {
-    await new Promise((resolve, reject) => {
-        setTimeout(() => resolve('done'), 2000);
-    });
+    // await new Promise((resolve, reject) => {
+    //     setTimeout(() => resolve('done'), 2000);
+    // });
 
     const height = 300;
     const width = 600;
@@ -909,6 +909,43 @@ const canRenderText = async() => {
     text.draw();
 }
 
+const lineHeight = async() => {
+    const languages = Object.keys(LANGUAGES);
+    const {family: fontFamily, url: fontUrl, text} = LANGUAGES[languages[0]];
+    await loadFont(fontFamily, fontUrl);
+
+    console.log('fontFamily', fontFamily)
+
+    const div = document.createElement('div');
+    div.innerText = text;
+    div.style.position = 'absolute';
+    div.style.top = '10px';
+    div.style.left = '10px';
+    div.style.width = '200px';
+    div.style.height = '200px';
+    div.style.fontFamily = fontFamily;
+    div.style.fontSize = '18px';
+    div.style.lineHeight = '1.4';
+    document.body.appendChild(div);
+
+    const asset = new Text({
+        text,
+        normalStyle: {
+            fontFamily: 'Poppins',
+            fontSize: 18,
+            fontColor: 'rgb(0,0,0)',
+        },
+        width: 400,
+        height: 200,
+    })
+    document.body.appendChild(asset.canvas);
+    asset.canvas.style.position = 'absolute';
+    asset.canvas.style.top = '10px';
+    asset.canvas.style.left = '10px';
+    asset.progress = 1.0;
+    asset.draw();
+}
+
 /**
  * Visual test to verify the behaviour of our layout algorithm.
  */
@@ -965,6 +1002,7 @@ const layoutText = async() => {
             ({positions, lastIndex} = layoutWords({
                 wordMetrics: metrics,
                 startIndex,
+                fontSize: fontSize,
                 wordSpace: space,
                 lineHeight,
                 layoutWidth: textWidth,
@@ -1068,6 +1106,7 @@ const canTextFitBounds = async() => {
         const result = layoutWords({
             wordMetrics: metrics,
             startIndex: 0,
+            fontSize: fontSize,
             wordSpace: space,
             lineHeight,
             layoutWidth: width,
@@ -1432,6 +1471,7 @@ const animatedIncrementer = () => {
 // dynamicStylingText1();
 
 // canRenderText();
+lineHeight();
 // canTextFitBounds();
 // layoutText();
 

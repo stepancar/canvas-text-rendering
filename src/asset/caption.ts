@@ -277,6 +277,7 @@ export class Caption {
                 ({positions, lastIndex} = layoutWords({
                     wordMetrics: this._normalWordMetrics,
                     startIndex: startIndex,
+                    fontSize: this.fontSize,
                     wordSpace: this.wordSpace,
                     lineHeight: this.lineHeight,
                     layoutWidth: this._width,

@@ -18,6 +18,7 @@ export const layoutWords = (
     {
         wordMetrics,
         startIndex,
+        fontSize,
         wordSpace,
         lineHeight,
         layoutWidth,
@@ -25,6 +26,7 @@ export const layoutWords = (
     }: {
         wordMetrics: Array<TextMetrics>,
         startIndex: number,
+        fontSize: number,
         wordSpace: number,
         lineHeight: number,
         layoutWidth: number,
@@ -32,7 +34,7 @@ export const layoutWords = (
     }
     ) => {
     let xPos = 0;
-    let yPos = 0 + lineHeight;
+    let yPos = 0 + fontSize;
     let wordPositions : Array<Position> = [];
     let lineIndices: number[] = [];
 
