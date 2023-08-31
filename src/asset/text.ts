@@ -18,6 +18,7 @@ export class Text {
     normalStyle: TextStyle;
     normalGraphicStyle: GraphicStyle | null = null;
     objectAnimation: Array<ObjectAnimation> | [] = [];
+    objectAnimationValues: Array<Array<number>> = [];
     highlightStyle: TextStyle | null = null;
     highlightGraphicStyle: GraphicStyle | null = null;
 
@@ -136,8 +137,9 @@ export class Text {
             }));
         }
 
-        // create animation incrementer so we can animate the text, element by element
+        // create animation incrementer, so we can animate the text, element by element
         if (this.objectAnimation.length !== 0) {
+            this.objectAnimationValues = [];
             this.objectAnimation.map((animation, index) => {
                 let arraySize = 0;
                 switch(animation.element) {
@@ -149,6 +151,9 @@ export class Text {
                 incrementer.offset = animation.offset;
                 incrementer.duration = animation.duration;
                 this._objectIncrementer.push(incrementer);
+
+                // create array for animation values
+                this.objectAnimationValues[index] = new Array(arraySize).fill(0);
             });
         }
     }
@@ -173,16 +178,24 @@ export class Text {
         this.context.fillStyle = this.highlightGraphicStyle.graphicColor;
     }
 
+    _computeAnimationValues() {
+        this._objectIncrementer.forEach((incrementer, index) => {
+            incrementer.progress = this.progress;
+            incrementer.update();
+
+            const animation = this.objectAnimation[index];
+            const range = animation.range;
+
+            this.objectAnimationValues[index] = incrementer.array.map(value => remapValue(value, range[0], range[1]));
+        });
+    }
+
     /**
      * Draw the text on the canvas. This includes the normal text, the highlighted text and graphics at their animated
      * state.
      */
     draw() {
-        // update animation
-        this._objectIncrementer.forEach((incrementer, index) => {
-            incrementer.progress = this.progress;
-            incrementer.update();
-        });
+        this._computeAnimationValues();
 
         // build up the canvas from the bottom up. First draw the elements that are behind the text.
 
@@ -256,14 +269,12 @@ export class Text {
             let yPos = this._normalWordPositions[i].y;
 
             this.objectAnimation.forEach((animation, aIndex) => {
-                const value = this._objectIncrementer[aIndex].array[lineIncrement];
-                const range = animation.range;
-                const remappedValue = remapValue(value, range[0], range[1]);
-
+                // since we always iterate over words, it's probably easier to store a value for each word instead
+                const value = this.objectAnimationValues[aIndex][lineIncrement];
                 switch (animation.property) {
-                    case 'opacity': this.context.globalAlpha = remappedValue; break;
-                    case 'x': xPos += remappedValue; break;
-                    case 'y': yPos += remappedValue; break;
+                    case 'opacity': this.context.globalAlpha = value; break;
+                    case 'x': xPos += value; break;
+                    case 'y': yPos += value; break;
                     default: throw new Error('Invalid animation property');
                 }
             });

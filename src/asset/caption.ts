@@ -6,8 +6,11 @@ import {Rectangle, Sprite, Texture} from "pixi.js";
 
 type ChunkBasedObjectAnimation = {
     property: string,
+    // this can be object, line or word
     element: string,
-    range: number[],
+    // this can be a hardcoded value or a dynamic value
+    //  max element height, max element width, element height, element width, scene width, scene height, gapless
+    range: [number, number],
     interpolation: {
         type: string,
         duration: number
@@ -112,6 +115,7 @@ export class Caption {
     private _activeChunkIndex: number = -1;
 
     objectAnimation: Array<ChunkBasedObjectAnimation> = [];
+    objectAnimationValues: Array<Array<number>> = [];
     private _interpolation: InterpolationCache;
 
     constructor(
@@ -170,6 +174,8 @@ export class Caption {
         // create interpolation cache
         // we should only do this globally once -- this is just to demo functionality
         this._interpolation = new InterpolationCache(100, 'sigmoid', 0, 1);
+        this.objectAnimationValues = this.objectAnimation.map(() => new Array(this.transcript.words.length).fill(0));
+
     }
 
     public get canvas() {
@@ -325,6 +331,46 @@ export class Caption {
         }
     }
 
+    _computeAnimationValues() {
+        // what about highlights? which value do they have?
+        // where does animation start and where does it stop? Since most remapping requires some kind of metrics we'll
+        // probably want to keep it in the draw method.
+        const chunk = this._getActiveChunk();
+        if (!chunk) {
+            return;
+        }
+        const activeWordIndex = chunk.transcript.getActiveWordIndex(this.currentTime);
+        this.objectAnimation.forEach((animation, index) => {
+            if (animation.element === 'word') {
+                const words = chunk.transcript.text;
+                for (let i = 0; i < words.length; i++) {
+                    let value = 0.0;
+
+                    // is the word going to be active in the foreseeable future?
+                    const duration = animation.interpolation ? animation.interpolation.duration : 0;
+                    if (duration > 0) {
+                        const futureWordIndex = chunk.transcript.getActiveWordIndex(this.currentTime + duration);
+                        if (i <= futureWordIndex) {
+                            const futureWord = chunk.transcript.words[i];
+                            const progress = (this.currentTime - futureWord.startTime + duration) / duration;
+                            value = clamped(progress, 0, 1);
+                        }
+                    }
+                    // is the word currently active or was it active in the past?
+                    if (i <= activeWordIndex) {
+                        value = 1;
+                    }
+
+                    const range = animation.range; // in our current examples range is a hardcoded value but in production it will be dynamic
+                    this.objectAnimationValues[index][i] = remapValue(this._interpolation.getCachedValue(value), range[0], range[1]);
+                }
+            }
+            else {
+                throw new Error('Invalid animation element');
+            }
+        });
+    }
+
     draw() {
         // get the active chunk
         const chunk = this._getActiveChunk();
@@ -332,42 +378,23 @@ export class Caption {
             return;
         }
         const words = chunk.transcript.text;
+        this._computeAnimationValues();
 
         // clear the canvas
         this.context.clearRect(0, 0, this.canvas.width, this.canvas.height);
 
         // draw the text
         this._activateNormalFont();
-        const activeWordIndex = chunk.transcript.getActiveWordIndex(this.currentTime);
         for (let i = 0; i < words.length; i++) {
             let xPos = this._x + chunk.wordPositions[i].x;
             let yPos = this._y + chunk.wordPositions[i].y;
 
-            this.objectAnimation.forEach(animation => {
-                let value = 0.0;
-
-                // is the word going to be active in the foreseeable future?
-                const duration = animation.interpolation ? animation.interpolation.duration : 0;
-                if (duration > 0) {
-                    const futureWordIndex = chunk.transcript.getActiveWordIndex(this.currentTime + duration);
-                    if (i <= futureWordIndex) {
-                        const futureWord = chunk.transcript.words[i];
-                        const progress = (this.currentTime - futureWord.startTime + duration) / duration;
-                        value = clamped(progress, 0, 1);
-                    }
-                }
-                // is the word currently active or was it active in the past?
-                if (i <= activeWordIndex) {
-                    value = 1;
-                }
-
-                const range = animation.range;
-                const remappedValue = remapValue(this._interpolation.getCachedValue(value), range[0], range[1]);
-
+            this.objectAnimation.forEach((animation, j) => {
+                const value = this.objectAnimationValues[j][i];
                 switch (animation.property) {
-                    case 'opacity': this.context.globalAlpha = remappedValue; break;
-                    case 'x': xPos += remappedValue; break;
-                    case 'y': yPos += remappedValue; break;
+                    case 'opacity': this.context.globalAlpha = value; break;
+                    case 'x': xPos +=  value; break;
+                    case 'y': yPos += value; break;
                     default: throw new Error('Invalid animation property');
                 }
             });

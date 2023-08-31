@@ -950,7 +950,6 @@ const lineHeight = async() => {
  * Visual test to verify the behaviour of our layout algorithm.
  */
 const layoutText = async() => {
-    console.log('layoutText')
     await loadFont('Poppins', 'https://storage.googleapis.com/lumen5-site-css/Poppins-Bold.ttf');
 
     // canvas for measuring text
@@ -1153,6 +1152,9 @@ const canTextFitBounds = async() => {
         context.fillText(words[i], x, y);
     });
 };
+
+
+// TODO: see if we can chain animations together to get the desired effect
 
 /**
  * Here we test out the staggering feature of anime.js. We want to see if we could use this library as a replacement
@@ -1460,7 +1462,7 @@ const animatedIncrementer = () => {
 // drawAllText();
 // drawLotsOfText();
 
-// fancyCaptionGeneratorSelect();
+fancyCaptionGeneratorSelect();
 // fancyCaptionGeneratorLighten();
 // fancyCaptionAppear();
 // pixiFancyCaptionAppear();
@@ -1471,7 +1473,7 @@ const animatedIncrementer = () => {
 // dynamicStylingText1();
 
 // canRenderText();
-lineHeight();
+// lineHeight();
 // canTextFitBounds();
 // layoutText();
 

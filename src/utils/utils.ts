@@ -121,6 +121,9 @@ export const remapValue = (value, min, max) => {
     return (value * range) + min;
 }
 
+/**
+ * Converts a lexical editor transcript into a simplified transcript format
+ */
 export const simplifyTranscript = (TRANSCRIPT, groupId='72f7ad49-c114-cf11-a619-14fa385d020f') => {
     // scene group id
     if (!TRANSCRIPT[groupId]) throw new Error('Invalid group id');

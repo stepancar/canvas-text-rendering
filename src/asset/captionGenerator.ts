@@ -30,7 +30,7 @@ export type GraphicStyle = {
 
 export type ObjectAnimation = {
     property: string,
-    element: 'line' | 'word',
+    element: 'line' | 'word' | 'object',
     offset: number,
     duration: number,
     range: [number, number],
