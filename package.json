@@ -7,7 +7,8 @@
     "build": "webpack build --config webpack.config.js",
     "node-build": "webpack build --config webpack.node.config.js",
     "node-run": "node scripts/main.js",
-    "node": "npm run node-build && npm run node-run"
+    "node": "npm run node-build && npm run node-run",
+    "serve": "webpack serve --config webpack.config.js"
   },
   "repository": {
     "type": "git",

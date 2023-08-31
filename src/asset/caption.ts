@@ -213,6 +213,11 @@ export class Caption {
     _activateNormalFont() {
         this.context.fillStyle = this.normalStyle.fontColor;
         this.context.font = `${this.normalStyle.fontSize}px ${this.normalStyle.fontFamily}`;
+
+        if (this.normalStyle.shadow) {
+            this.context.shadowColor = this.normalStyle.shadow.color;
+            this.context.shadowBlur = this.normalStyle.shadow.blur;
+        }
     }
 
     set currentTime(value: number) {

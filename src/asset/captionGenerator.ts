@@ -10,12 +10,21 @@ export type Font = {
     url: string,
 }
 
+export type TextShadow = {
+    alpha: number;
+    angle: number;
+    blur: number;
+    color: string;
+    distance: number;
+}
+
 // we still need text shadow as well - maybe we should just use the same interface as the one that PIXI provides?
 export type TextStyle = {
     fontSize: number,
     fontFamily: string,
     fontColor: string,
     lineHeight?: number,
+    shadow?: TextShadow,
 }
 
 export type GraphicStyle = {

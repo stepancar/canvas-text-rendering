@@ -289,6 +289,13 @@ const fancyCaptionGeneratorSelect = async() => {
     await loadFont('Poppins', 'https://storage.googleapis.com/lumen5-site-css/Poppins-Bold.ttf');
 
     const {words, language, textDirection} = simplifyTranscript(TRANSCRIPT)
+
+    console.log({
+        words,
+        language,
+        textDirection
+    })
+
     const transcript = new Transcript({
         name: 'global',
         words,
@@ -547,6 +554,13 @@ const fancyCaptionAppear = async() => {
             fontSize: 28,
             fontColor: 'rgba(0,0,0, 1.0)',
             lineHeight: 1.6,
+            shadow: {
+                alpha: 1.0,
+                angle: 0,
+                color: 'rgba(0,0,0, 0.5)',
+                distance: 5,
+                blur: 10,
+            },
         },
         chunkStyle: {
             style: 'bounds'
@@ -1462,9 +1476,9 @@ const animatedIncrementer = () => {
 // drawAllText();
 // drawLotsOfText();
 
-fancyCaptionGeneratorSelect();
+// fancyCaptionGeneratorSelect();
 // fancyCaptionGeneratorLighten();
-// fancyCaptionAppear();
+fancyCaptionAppear();
 // pixiFancyCaptionAppear();
 
 // pixiCanvasMultiSync();
