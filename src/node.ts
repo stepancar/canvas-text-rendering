@@ -4,7 +4,6 @@ const { registerFont, createCanvas } = require('canvas')
 import LANGUAGES from "./library";
 import {downloadFile} from "./utils/node_utils";
 import {getWords} from "./utils/node_utils";
-import {Text} from "./asset/text";
 
 const drawAndSelectText = async(languageIndex: number) => {
     if (languageIndex === undefined) {
