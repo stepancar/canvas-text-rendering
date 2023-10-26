@@ -42,10 +42,10 @@ module.exports = {
       new HtmlWebpackPlugin({
         title: 'Output Management',
       }),
-      new CopyWebpackPlugin({
-        patterns: [
-            {from: './resources/*'},
-        ]
-      }),
+      // new CopyWebpackPlugin({
+      //   patterns: [
+      //       {from: './resources/*'},
+      //   ]
+      // }),
   ]
 };
